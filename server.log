@@ -1,0 +1,25 @@
+
+> uitest@0.0.0 server
+> node backend/server.js
+
+Server is running on port 3001
+[scan-1772317092558-mm7q50u4k] Cloning repository: xyz
+[scan-1772317787599-y2bv2ojqk] Cloning repository: https://github.com/heroku/nodejs-getting-started
+[scan-1772317787599-y2bv2ojqk] Building and running container
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: ENOENT: no such file or directory, lstat '/Users/mohamedfarghally/Documents/windsurf/ui/uiTest/backend/temp-scans/scan-1772317787599-y2bv2ojqk/repo/Dockerfile'
+Emitted 'error' event on Pack instance at:
+    at Pack.destroy (/Users/mohamedfarghally/Documents/windsurf/ui/uiTest/node_modules/tar-stream/pack.js:202:17)
+    at onstat (/Users/mohamedfarghally/Documents/windsurf/ui/uiTest/node_modules/tar-fs/index.js:97:26)
+    at /Users/mohamedfarghally/Documents/windsurf/ui/uiTest/node_modules/tar-fs/index.js:30:23
+    at FSReqCallback.oncomplete (node:fs:197:21) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'lstat',
+  path: '/Users/mohamedfarghally/Documents/windsurf/ui/uiTest/backend/temp-scans/scan-1772317787599-y2bv2ojqk/repo/Dockerfile'
+}
+
+Node.js v20.17.0
