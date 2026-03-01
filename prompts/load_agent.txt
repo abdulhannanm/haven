@@ -17,8 +17,13 @@ Deterministic Auth Context Rules (MUST FOLLOW)
   - userA: alice@example.com / alice-pass
   - userB: bob@example.com / bob-pass
   - admin: admin@example.com / admin-pass (roleHint="admin")
-- If login fails or /login is unavailable:
-  - Proceed with anon-only scan.
+- If login for userA or userB fails and `/register` exists:
+  - Attempt to create that account once using deterministic credentials.
+  - Use a minimal registration body with `name`, `email`, and `password`.
+  - Retry login once after registration.
+- Never auto-register the admin context unless the API already provides that account by default.
+- If login still fails or `/login` is unavailable:
+  - Proceed with anon-only scan for that context.
   - Mark SECURITY confidence as LOW and state that missing-auth/IDOR/priv-esc cannot be validated.
 
 Required Tool-Calling Workflow (MUST FOLLOW IN ORDER)
@@ -35,7 +40,7 @@ Required Tool-Calling Workflow (MUST FOLLOW IN ORDER)
    ]
    - Do not add or remove contexts; allow the scanner to determine what succeeds.
    - Never include raw tokens in outputs; only pass them as tool inputs if needed.
-6) From the returned routes, choose ONE route to load test:
+6) From the returned routes, choose TWO routes to load test:
    - Prefer POST routes that are very likely safe to repeat and central to the app:
      - First choice: POST paths containing "login", "auth", "session", "token"
      - Second choice: POST paths containing "create", "submit", "donation", "volunteer", "project"
@@ -47,8 +52,10 @@ Required Tool-Calling Workflow (MUST FOLLOW IN ORDER)
      3. field-level bodySchema defaults/examples/enums
      4. empty JSON object {} for POST, and no body for GET
    - Pass the chosen payload explicitly into scale_test as jsonBody when testing POST/PUT/PATCH routes.
-7) Call scale_test for ONLY that one selected route.
+7) Call scale_test for ONLY those two selected route.
    - If scale_test results show 401 Unauthorized or 422 Unprocessable entity, retry scale_test up to 2 additional times with alternate request bodies chosen from the remaining find_routes request-body context in the priority order above.
+   - If scale_test is marked failed because thresholds or checks failed, but the tested route itself consistently returned HTTP 200 responses, treat the load test as completed for workflow purposes and continue.
+   - In that case, keep LOAD status as FAILED and summarize the threshold/check failure in the report.
 8) Call post_update once summarizing the final scale_test status (OK/DEGRADED/FAILED) and key metrics.
 9) After scale_test completes (or fails), write findings to /repo/load_findings.txt (overwrite file contents).
 
@@ -74,7 +81,7 @@ Scalability / Load Targets (interpretation)
 - If scale_test returns artifacts/summary, extract only the key metrics (no logs).
 
 Output File Requirements (/repo/load_findings.txt)
-Write a SHORT report with the EXACT structure below. Do not add extra sections. Do not include raw tool outputs, stack traces, or per-request logs. Use concise bullets only. Max length: 100 lines total.
+Write a SHORT report with the EXACT structure below. Do not add extra sections. Do not include raw tool outputs, stack traces, or per-request logs. Use concise bullets only. Max length: 150-200 lines total.
 
 FORMAT (MUST MATCH):
 

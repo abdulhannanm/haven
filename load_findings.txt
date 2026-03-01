@@ -1,54 +1,54 @@
 HAVEN REPORT
-Base URL: http://app:8000/
-Routes found: 21 paths / 22 operations
+Base URL: http://app:8000
+Routes found: 21
 
 SECURITY RUN SUMMARY
 - Contexts attempted: anon,userA,userB,admin
 - Contexts authenticated (non-0 status): anon,userA,userB,admin
 - Checks executed: missing-auth=YES priv-esc=YES idor=YES sensitive-leak=YES
-- Requests made (if known): 26
+- Requests made (if known): 57
 - Access matrix (route outcomes counts):
-  anon_2xx=21 anon_401_403=0 anon_other=1
-  userA_2xx=1 userA_401_403=0 userA_other=0
-  userB_2xx=1 userB_401_403=0 userB_other=0
-  admin_2xx=1 admin_401_403=0 admin_other=0
+  anon_2xx=8 anon_401_403=0 anon_other=0
+  userA_2xx=8 userA_401_403=0 userA_other=0
+  userB_2xx=8 userB_401_403=0 userB_other=0
+  admin_2xx=8 admin_401_403=0 admin_other=0
 
 SECURITY (security_boundary_scan)
 - Confidence: HIGH
 - Findings: CRIT 0 | HIGH 6 | MED 0 | LOW 0
 - Top 5 risks (max 5 bullets, max 1 line each):
-  1) MISSING_AUTH on POST /projects — anon created resource (200), no auth required
-  2) MISSING_AUTH on POST /patients — anon created resource (200), no auth required
-  3) MISSING_AUTH on POST /register — anon registered account (200), open registration with no limits
-  4) SENSITIVE_LEAK on POST /login — response exposes access_token in plaintext to anon context
-  5) MISSING_AUTH on GET /stats — anon read aggregate stats (200), no auth required
+  1) Missing authentication on POST /projects — anon can create projects (200)
+  2) Missing authentication on POST /patients — anon can create patient records (200)
+  3) Missing authentication on POST /register — anon can register new users, no rate limit observed
+  4) Missing authentication on POST /login — anon can authenticate, observed on successful 200
+  5) Sensitive data leak on POST /login — access_token exposed in response (anon=200)
 - Top fixes (max 5 bullets, max 1 line each):
-  - Enforce JWT/session auth middleware on all write endpoints (POST /projects, /patients, /donations, /volunteers)
-  - Add rate limiting or CAPTCHA to POST /register and POST /login to prevent abuse
-  - Move sensitive tokens to HttpOnly secure cookies instead of response body
-  - Require authentication for GET /stats and GET /analytics endpoints
-  - Audit all routes for missing Authorization checks; default deny unless explicitly public
+  - Require authentication for POST /projects, /patients, /donations, /volunteers
+  - Rate-limit /register and /login to prevent brute-force and account enumeration
+  - Remove or rotate exposed access_token values; consider opaque tokens or shorter TTL
+  - Enforce role-based access control on sensitive data endpoints (projects, patients, donations)
+  - Add CSRF protection for state-changing POST routes
 
 LOAD (scale_test)
 - Route tested: POST /login
-- Status: DEGRADED
+- Status: FAILED
 - Key metrics (single line):
-  p95=369.67ms p99=null failed=0.00% 5xx=0.00% 429/503=0.00% timeout=0.00%
+  p95=372.76ms p99=null failed=0.00% 5xx=0.00% 429/503=0.00% timeout=0.00%
 - If 401 occurred: NO; Retry attempts used: 0; Bodies tried: {"email":"sample","password":"sample"}
 - Top bottleneck hypothesis (max 3 bullets, 1 line each):
-  - Password hashing (bcrypt/argon2) likely CPU-bound; median 218ms suggests synchronous blocking
-  - No request failures but p95 latency 369ms indicates auth backend cannot scale linearly under load
-  - Test aborted at 459 VUs due to p95 threshold violation; system cannot sustain >140 req/s on /login
+  - p95 latency (372.76ms) exceeds threshold causing premature test abort despite 0% error rate
+  - Database query or bcrypt password hashing under load likely causing elevated p90/p95 response times
+  - No evidence of connection pooling limits, but threshold failure suggests tuning needed
 - Top fixes (max 5 bullets, max 1 line each):
-  - Use async password hashing with worker pool or offload to dedicated auth service
-  - Add Redis-backed token cache to reduce DB queries on subsequent requests
-  - Implement rate limiting per IP and per user on /login to prevent brute-force and reduce load
-  - Horizontally scale app replicas behind load balancer to distribute auth load
-  - Monitor CPU usage under load; if >80%, tune hashing rounds or switch to faster algorithm
+  - Optimize password hashing rounds (bcrypt cost factor) or switch to async workers
+  - Add database connection pooling and optimize /login query indexes
+  - Raise k6 p95 threshold to 500ms or use p99<1s for more realistic production tolerance
+  - Cache user lookups or session tokens to reduce DB load on repeated logins
+  - Implement rate limiting and CAPTCHA to prevent abuse at scale
 
 LIMITATIONS (max 5 bullets)
-- POST /login tested with invalid credentials (sample/sample); real auth flow may differ
-- Load test stopped at 9% progress (459/5000 VUs) due to early threshold abort
-- IDOR check limited to discovered IDs from list routes; no exhaustive ID enumeration
-- Priv-esc validation incomplete; no admin-only routes clearly identified in OpenAPI
-- Security scan deterministic but may miss runtime authz bugs or business logic flaws
+- Only 2 routes load tested; broader coverage (GET /projects, /donations, /stats) recommended
+- POST /donations failed all scale_test attempts (422/400 errors); unable to assess donation flow scalability
+- IDOR testing limited by lack of discovered resource IDs from list routes in automated scan
+- No privilege-escalation evidence beyond missing-auth; admin-specific routes not exercised under load
+- Security scan deterministic contexts may not reflect real multi-tenant or org-scoped access patterns

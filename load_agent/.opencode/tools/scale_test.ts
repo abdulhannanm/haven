@@ -33,6 +33,7 @@ export default tool({
         token: tool.schema.optional(tool.schema.string()),
         email: tool.schema.optional(tool.schema.string()),
         password: tool.schema.optional(tool.schema.string()),
+        roleHint: tool.schema.optional(tool.schema.string()),
         headers: tool.schema.optional(
           tool.schema.object({}).passthrough(),
         ),
@@ -171,6 +172,7 @@ async function resolveAuthHeaders(
     token?: string;
     email?: string;
     password?: string;
+    roleHint?: string;
     headers?: Record<string, string>;
   },
 ): Promise<Record<string, string>> {
@@ -180,13 +182,31 @@ async function resolveAuthHeaders(
     return headers;
   }
   if (auth.email && auth.password) {
-    const token = await loginForToken(baseUrl, auth.email, auth.password);
+    const token = await ensureToken(baseUrl, auth.email, auth.password, auth.roleHint);
     if (!token) {
       throw new Error(`Authentication failed for ${auth.email}`);
     }
     headers["Authorization"] = `Bearer ${token}`;
   }
   return headers;
+}
+
+async function ensureToken(
+  baseUrl: string,
+  email: string,
+  password: string,
+  roleHint?: string,
+): Promise<string | undefined> {
+  const existingToken = await loginForToken(baseUrl, email, password);
+  if (existingToken) return existingToken;
+
+  const isAdmin = roleHint?.toLowerCase() === "admin" || email.toLowerCase().includes("admin@");
+  if (isAdmin) return undefined;
+
+  const registered = await registerIfAvailable(baseUrl, email, password);
+  if (!registered) return undefined;
+
+  return loginForToken(baseUrl, email, password);
 }
 
 async function loginForToken(baseUrl: string, email: string, password: string): Promise<string | undefined> {
@@ -201,6 +221,31 @@ async function loginForToken(baseUrl: string, email: string, password: string): 
     return json.access_token;
   }
   return undefined;
+}
+
+async function registerIfAvailable(baseUrl: string, email: string, password: string): Promise<boolean> {
+  const response = await fetch(`${baseUrl}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: deriveNameFromEmail(email),
+      email,
+      password,
+    }),
+  });
+
+  if (response.ok) return true;
+  if (response.status === 400 || response.status === 409) return true;
+  return false;
+}
+
+function deriveNameFromEmail(email: string): string {
+  const localPart = email.split("@")[0] ?? "load-user";
+  const words = localPart
+    .split(/[._-]+/u)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1));
+  return words.length > 0 ? words.join(" ") : "Load User";
 }
 
 function buildSampleValue(

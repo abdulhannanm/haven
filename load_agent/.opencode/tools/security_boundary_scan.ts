@@ -424,7 +424,13 @@ async function buildContexts(
     if (input.token) {
       headers["Authorization"] = `Bearer ${input.token}`
     } else if (input.email && input.password) {
-      const token = await loginIfNeeded(baseUrl, input.email, input.password, timeoutMs)
+      const token = await ensureToken(
+        baseUrl,
+        input.email,
+        input.password,
+        timeoutMs,
+        input.roleHint,
+      )
       if (token) {
         headers["Authorization"] = `Bearer ${token}`
       }
@@ -464,6 +470,57 @@ async function loginIfNeeded(
     return token
   }
   return undefined
+}
+
+async function ensureToken(
+  baseUrl: string,
+  email: string,
+  password: string,
+  timeoutMs: number,
+  roleHint?: string,
+): Promise<string | undefined> {
+  const token = await loginIfNeeded(baseUrl, email, password, timeoutMs)
+  if (token) return token
+
+  const isAdmin = roleHint?.toLowerCase() === "admin" || email.toLowerCase().includes("admin@")
+  if (isAdmin) return undefined
+
+  const registered = await registerIfAvailable(baseUrl, email, password, timeoutMs)
+  if (!registered) return undefined
+
+  return loginIfNeeded(baseUrl, email, password, timeoutMs)
+}
+
+async function registerIfAvailable(
+  baseUrl: string,
+  email: string,
+  password: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const result = await sendRequest({
+    method: "POST",
+    url: `${baseUrl}/register`,
+    headers: { "Content-Type": "application/json" },
+    jsonBody: {
+      name: deriveNameFromEmail(email),
+      email,
+      password,
+    },
+    timeoutMs,
+  })
+
+  if (result.ok) return true
+  if (result.status === 400 || result.status === 409) return true
+  return false
+}
+
+function deriveNameFromEmail(email: string): string {
+  const localPart = email.split("@")[0] ?? "load-user"
+  const words = localPart
+    .split(/[._-]+/gu)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  return words.length > 0 ? words.join(" ") : "Load User"
 }
 
 function hasAuthHeader(headers: Record<string, string>): boolean {
