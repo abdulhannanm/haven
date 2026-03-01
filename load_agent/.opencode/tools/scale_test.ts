@@ -13,13 +13,28 @@ export default tool({
       tool.schema.object({
         path: tool.schema.string(),
         method: tool.schema.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+        jsonBody: tool.schema.optional(tool.schema.any()),
         bodySchema: tool.schema.optional(
           tool.schema.array(
             tool.schema.object({
               name: tool.schema.string(),
               type: tool.schema.string(),
+              required: tool.schema.optional(tool.schema.boolean()),
+              default: tool.schema.optional(tool.schema.any()),
+              example: tool.schema.optional(tool.schema.any()),
+              enum: tool.schema.optional(tool.schema.array(tool.schema.any())),
             }),
           ),
+        ),
+      }),
+    ),
+    auth: tool.schema.optional(
+      tool.schema.object({
+        token: tool.schema.optional(tool.schema.string()),
+        email: tool.schema.optional(tool.schema.string()),
+        password: tool.schema.optional(tool.schema.string()),
+        headers: tool.schema.optional(
+          tool.schema.object({}).passthrough(),
         ),
       }),
     ),
@@ -32,6 +47,7 @@ export default tool({
 
     const baseUrl = baseUrlRaw.replace(/\/+$/u, "");
     const execFileAsync = promisify(execFile);
+    const authHeaders = await resolveAuthHeaders(baseUrl, args.auth ?? {});
 
     const results: Array<{
       path: string;
@@ -46,43 +62,29 @@ export default tool({
     for (const route of args.routes) {
       const url = `${baseUrl}${route.path.startsWith("/") ? route.path : `/${route.path}`}`;
 
-      const largeString = "X".repeat(1_000_000);
-      const bodyPayload = Array.isArray(route.bodySchema)
+      const bodyPayload = route.jsonBody ?? (Array.isArray(route.bodySchema)
         ? route.bodySchema.reduce<Record<string, unknown>>((acc, field, index) => {
-            const type = field.type.toLowerCase();
-            switch (type) {
-              case "int":
-              case "integer":
-              case "number":
-                acc[field.name] = (index + 1) * 1000;
-                break;
-              case "bool":
-              case "boolean":
-                acc[field.name] = index % 2 === 0;
-                break;
-              case "str":
-              case "string":
-                acc[field.name] = `${largeString}_${index + 1}`;
-                break;
-              case "list":
-                acc[field.name] = [largeString, largeString, largeString];
-                break;
-              case "object":
-              case "obj":
-                acc[field.name] = { payload: largeString };
-                break;
-              default:
-                acc[field.name] = `${largeString}_${index + 1}`;
-            }
+            acc[field.name] = buildSampleValue(
+              field.name,
+              field.type,
+              index,
+              field.example,
+              field.default,
+              field.enum,
+            );
             return acc;
           }, {})
-        : {};
+        : {});
 
       const hasBody = route.method !== "GET" && route.method !== "DELETE";
+      const headers = {
+        ...(Object.keys(authHeaders).length > 0 ? authHeaders : {}),
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      };
       const bodyLine = hasBody ? `const payload = ${JSON.stringify(bodyPayload)};` : "";
       const requestLine = hasBody
-        ? `let res = http.request("${route.method}", "${url}", JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });`
-        : `let res = http.request("${route.method}", "${url}");`;
+        ? `let res = http.request("${route.method}", "${url}", JSON.stringify(payload), { headers: ${JSON.stringify(headers)} });`
+        : `let res = http.request("${route.method}", "${url}", { headers: ${JSON.stringify(headers)} });`;
 
       const script = `
 import http from "k6/http";
@@ -162,3 +164,96 @@ export default function () {
     );
   },
 })
+
+async function resolveAuthHeaders(
+  baseUrl: string,
+  auth: {
+    token?: string;
+    email?: string;
+    password?: string;
+    headers?: Record<string, string>;
+  },
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...(auth.headers ?? {}) };
+  if (auth.token) {
+    headers["Authorization"] = `Bearer ${auth.token}`;
+    return headers;
+  }
+  if (auth.email && auth.password) {
+    const token = await loginForToken(baseUrl, auth.email, auth.password);
+    if (!token) {
+      throw new Error(`Authentication failed for ${auth.email}`);
+    }
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function loginForToken(baseUrl: string, email: string, password: string): Promise<string | undefined> {
+  const response = await fetch(`${baseUrl}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) return undefined;
+  const json = (await response.json().catch(() => undefined)) as { access_token?: string } | undefined;
+  if (json && typeof json.access_token === "string" && json.access_token.length > 0) {
+    return json.access_token;
+  }
+  return undefined;
+}
+
+function buildSampleValue(
+  name: string,
+  type: string,
+  index: number,
+  example?: unknown,
+  defaultValue?: unknown,
+  enumValues?: unknown[],
+): unknown {
+  if (example !== undefined) return example;
+  if (defaultValue !== undefined) return defaultValue;
+  if (Array.isArray(enumValues) && enumValues.length > 0) return enumValues[0];
+
+  const normalizedName = name.toLowerCase();
+  const normalizedType = type.toLowerCase();
+
+  switch (normalizedType) {
+    case "int":
+    case "integer":
+      return index + 1;
+    case "number":
+      return index + 1;
+    case "bool":
+    case "boolean":
+      return true;
+    case "list":
+    case "array":
+      if (normalizedName.includes("skill") || normalizedName.includes("tag")) {
+        return ["sample"];
+      }
+      return ["item"];
+    case "object":
+    case "obj":
+      return {};
+    case "str":
+    case "string":
+    default:
+      return sampleStringForField(normalizedName, index);
+  }
+}
+
+function sampleStringForField(name: string, index: number): string {
+  if (name.includes("email")) return `loadtest${index + 1}@example.com`;
+  if (name.includes("password")) return "alice-pass";
+  if (name.includes("name")) return `Load Test ${index + 1}`;
+  if (name.includes("title")) return `Load Test Title ${index + 1}`;
+  if (name.includes("description")) return "Load test description";
+  if (name.includes("message")) return "Load test message";
+  if (name.includes("location")) return "Test Location";
+  if (name.includes("category")) return "general";
+  if (name.includes("availability")) return "Weekdays";
+  if (name.includes("phone")) return "5550100";
+  if (name.includes("token")) return "sample-token";
+  return `sample-${index + 1}`;
+}

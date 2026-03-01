@@ -22,7 +22,12 @@ logger = logging.getLogger("hack4humanity")
 # Allow CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -107,6 +112,94 @@ def get_project_by_id(project_id: int):
         if project["id"] == project_id:
             return project
     return None
+
+
+# Seed data on startup so uvicorn runs have initial content
+def seed_sample_data():
+    if not projects_db:
+        projects_db.extend(
+            [
+                {
+                    "id": 1,
+                    "title": "Clean Water Initiative",
+                    "description": "Providing clean drinking water to rural communities in developing countries",
+                    "category": "Environment",
+                    "goal": 50000.0,
+                    "progress": 45.2,
+                    "location": "Sub-Saharan Africa",
+                    "created_at": "2026-02-01T00:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "title": "Digital Literacy Program",
+                    "description": "Teaching computer skills to underprivileged youth",
+                    "category": "Education",
+                    "goal": 15000.0,
+                    "progress": 78.5,
+                    "location": "Urban Areas",
+                    "created_at": "2026-02-05T00:00:00Z",
+                },
+                {
+                    "id": 3,
+                    "title": "Food Security Project",
+                    "description": "Establishing community gardens and food distribution centers",
+                    "category": "Food Security",
+                    "goal": 25000.0,
+                    "progress": 23.1,
+                    "location": "North America",
+                    "created_at": "2026-02-10T00:00:00Z",
+                },
+            ]
+        )
+
+    if not donations_db:
+        donations_db.extend(
+            [
+                {
+                    "id": 1,
+                    "project_id": 1,
+                    "amount": 500.0,
+                    "donor_name": "John Doe",
+                    "message": "Making a difference!",
+                    "created_at": "2026-02-15T00:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "project_id": 2,
+                    "amount": 200.0,
+                    "donor_name": "Jane Smith",
+                    "message": "Supporting education",
+                    "created_at": "2026-02-18T00:00:00Z",
+                },
+            ]
+        )
+
+    if not volunteers_db:
+        volunteers_db.extend(
+            [
+                {
+                    "id": 1,
+                    "name": "Mike Johnson",
+                    "email": "mike@example.com",
+                    "skills": ["Teaching", "IT Support"],
+                    "availability": "Weekends",
+                    "created_at": "2026-02-12T00:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "name": "Sarah Wilson",
+                    "email": "sarah@example.com",
+                    "skills": ["Gardening", "Community Outreach"],
+                    "availability": "Weekdays",
+                    "created_at": "2026-02-14T00:00:00Z",
+                },
+            ]
+        )
+
+
+@app.on_event("startup")
+async def on_startup():
+    seed_sample_data()
 
 
 # Routes
@@ -223,85 +316,6 @@ async def get_stats():
 
 
 if __name__ == "__main__":
-    # Add some sample data
-    if not projects_db:
-        projects_db.extend(
-            [
-                {
-                    "id": 1,
-                    "title": "Clean Water Initiative",
-                    "description": "Providing clean drinking water to rural communities in developing countries",
-                    "category": "Environment",
-                    "goal": 50000.0,
-                    "progress": 45.2,
-                    "location": "Sub-Saharan Africa",
-                    "created_at": "2026-02-01T00:00:00Z",
-                },
-                {
-                    "id": 2,
-                    "title": "Digital Literacy Program",
-                    "description": "Teaching computer skills to underprivileged youth",
-                    "category": "Education",
-                    "goal": 15000.0,
-                    "progress": 78.5,
-                    "location": "Urban Areas",
-                    "created_at": "2026-02-05T00:00:00Z",
-                },
-                {
-                    "id": 3,
-                    "title": "Food Security Project",
-                    "description": "Establishing community gardens and food distribution centers",
-                    "category": "Food Security",
-                    "goal": 25000.0,
-                    "progress": 23.1,
-                    "location": "North America",
-                    "created_at": "2026-02-10T00:00:00Z",
-                },
-            ]
-        )
-
-    if not donations_db:
-        donations_db.extend(
-            [
-                {
-                    "id": 1,
-                    "project_id": 1,
-                    "amount": 500.0,
-                    "donor_name": "John Doe",
-                    "message": "Making a difference!",
-                    "created_at": "2026-02-15T00:00:00Z",
-                },
-                {
-                    "id": 2,
-                    "project_id": 2,
-                    "amount": 200.0,
-                    "donor_name": "Jane Smith",
-                    "message": "Supporting education",
-                    "created_at": "2026-02-18T00:00:00Z",
-                },
-            ]
-        )
-
-    if not volunteers_db:
-        volunteers_db.extend(
-            [
-                {
-                    "id": 1,
-                    "name": "Mike Johnson",
-                    "email": "mike@example.com",
-                    "skills": ["Teaching", "IT Support"],
-                    "availability": "Weekends",
-                    "created_at": "2026-02-12T00:00:00Z",
-                },
-                {
-                    "id": 2,
-                    "name": "Sarah Wilson",
-                    "email": "sarah@example.com",
-                    "skills": ["Gardening", "Community Outreach"],
-                    "availability": "Weekdays",
-                    "created_at": "2026-02-14T00:00:00Z",
-                },
-            ]
-        )
-
+    # Ensure sample data exists when running directly
+    seed_sample_data()
     uvicorn.run(app, host="0.0.0.0", port=8000)

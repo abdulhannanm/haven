@@ -1,0 +1,54 @@
+HAVEN REPORT
+Base URL: http://app:8000/
+Routes found: 21 paths / 22 operations
+
+SECURITY RUN SUMMARY
+- Contexts attempted: anon,userA,userB,admin
+- Contexts authenticated (non-0 status): anon,userA,userB,admin
+- Checks executed: missing-auth=YES priv-esc=YES idor=YES sensitive-leak=YES
+- Requests made (if known): 26
+- Access matrix (route outcomes counts):
+  anon_2xx=21 anon_401_403=0 anon_other=1
+  userA_2xx=1 userA_401_403=0 userA_other=0
+  userB_2xx=1 userB_401_403=0 userB_other=0
+  admin_2xx=1 admin_401_403=0 admin_other=0
+
+SECURITY (security_boundary_scan)
+- Confidence: HIGH
+- Findings: CRIT 0 | HIGH 6 | MED 0 | LOW 0
+- Top 5 risks (max 5 bullets, max 1 line each):
+  1) MISSING_AUTH on POST /projects — anon created resource (200), no auth required
+  2) MISSING_AUTH on POST /patients — anon created resource (200), no auth required
+  3) MISSING_AUTH on POST /register — anon registered account (200), open registration with no limits
+  4) SENSITIVE_LEAK on POST /login — response exposes access_token in plaintext to anon context
+  5) MISSING_AUTH on GET /stats — anon read aggregate stats (200), no auth required
+- Top fixes (max 5 bullets, max 1 line each):
+  - Enforce JWT/session auth middleware on all write endpoints (POST /projects, /patients, /donations, /volunteers)
+  - Add rate limiting or CAPTCHA to POST /register and POST /login to prevent abuse
+  - Move sensitive tokens to HttpOnly secure cookies instead of response body
+  - Require authentication for GET /stats and GET /analytics endpoints
+  - Audit all routes for missing Authorization checks; default deny unless explicitly public
+
+LOAD (scale_test)
+- Route tested: POST /login
+- Status: DEGRADED
+- Key metrics (single line):
+  p95=369.67ms p99=null failed=0.00% 5xx=0.00% 429/503=0.00% timeout=0.00%
+- If 401 occurred: NO; Retry attempts used: 0; Bodies tried: {"email":"sample","password":"sample"}
+- Top bottleneck hypothesis (max 3 bullets, 1 line each):
+  - Password hashing (bcrypt/argon2) likely CPU-bound; median 218ms suggests synchronous blocking
+  - No request failures but p95 latency 369ms indicates auth backend cannot scale linearly under load
+  - Test aborted at 459 VUs due to p95 threshold violation; system cannot sustain >140 req/s on /login
+- Top fixes (max 5 bullets, max 1 line each):
+  - Use async password hashing with worker pool or offload to dedicated auth service
+  - Add Redis-backed token cache to reduce DB queries on subsequent requests
+  - Implement rate limiting per IP and per user on /login to prevent brute-force and reduce load
+  - Horizontally scale app replicas behind load balancer to distribute auth load
+  - Monitor CPU usage under load; if >80%, tune hashing rounds or switch to faster algorithm
+
+LIMITATIONS (max 5 bullets)
+- POST /login tested with invalid credentials (sample/sample); real auth flow may differ
+- Load test stopped at 9% progress (459/5000 VUs) due to early threshold abort
+- IDOR check limited to discovered IDs from list routes; no exhaustive ID enumeration
+- Priv-esc validation incomplete; no admin-only routes clearly identified in OpenAPI
+- Security scan deterministic but may miss runtime authz bugs or business logic flaws

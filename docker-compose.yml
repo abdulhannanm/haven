@@ -3,7 +3,7 @@ version: "3.9"
 services:
   app:
     build:
-      context: ./test_app
+      context: ./demoApp
     container_name: hack_app
     ports:
       - "3000:3000"
