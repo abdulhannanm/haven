@@ -32,7 +32,7 @@ backend:
 # Start React frontend server
 frontend:
 	@echo "Starting React frontend server on port 3000..."
-	@cd frontend && npm run dev
+	@cd frontend && npm run dev -- --host 0.0.0.0 --port 3000
 
 # Start both backend and frontend
 run: backend frontend
@@ -55,4 +55,4 @@ dev:
 	@echo ""
 	@-cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
 	@sleep 2
-	@cd frontend && npm run dev
+	@cd frontend && npm run dev -- --host 0.0.0.0 --port 3000

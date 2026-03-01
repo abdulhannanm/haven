@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ./test_app
+    container_name: hack_app
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+
+  load_agent:
+    build:
+      context: ./load_agent
+    container_name: hack_load_agent
+    command: ["sh", "-c", "sleep infinity"]
+    environment:
+      - TARGET_BASE_URL=http://app:8000
+      - RUNS_DIR=/runs
+    expose:
+      - "8000"
+    ports:
+      - "9000:8000"
+    volumes:
+      - ./runs:/runs
+
+networks:
+  default:
+    name: hackathon_net
