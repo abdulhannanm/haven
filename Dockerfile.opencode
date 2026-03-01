@@ -1,6 +1,5 @@
 FROM node:20-bookworm
 
-# basics
 RUN apt-get update && apt-get install -y --no-install-recommends \
   git ca-certificates curl bash gnupg \
   && rm -rf /var/lib/apt/lists/*
@@ -16,11 +15,8 @@ RUN arch="$(dpkg --print-architecture)" \
   && mv "/tmp/k6-v${K6_VERSION}-${k6_arch}/k6" /usr/local/bin/k6 \
   && rm -rf /tmp/k6.tgz "/tmp/k6-v${K6_VERSION}-${k6_arch}"
 
-# install opencode (npm global install is documented) :contentReference[oaicite:3]{index=3}
 RUN npm install -g opencode-ai
 
 WORKDIR /repo
-COPY . /repo
 
-# default: just open a shell (compose can override)
 CMD ["bash", "-lc", "opencode --help && sleep infinity"]

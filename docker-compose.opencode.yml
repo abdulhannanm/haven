@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile.opencode
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+    environment:
+      # Pick your model/provider env vars here (depends on what you use)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+      # your prompt gets injected at runtime
+      OPENCODE_PROMPT: >
+        You are the resilience/load agent. First call the route-finder tool on http://app:8000.
+        Then choose 1 critical post route and call the stress-test tool.
+
+    # Automated startup: run opencode in non-interactive mode
+    command: ["bash", "-lc", "opencode run --format json \"$OPENCODE_PROMPT\""]

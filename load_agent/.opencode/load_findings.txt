@@ -1,0 +1,72 @@
+LOAD TESTING FINDINGS - POST /donations ENDPOINT
+=================================================
+
+TEST PARAMETERS:
+- Base URL: http://app:8000
+- Endpoint: POST /donations
+- Test Duration: ~14 seconds (test terminated early due to threshold breach)
+- Maximum VUs Configured: 5000
+- Actual Maximum VUs Reached: 460
+
+ENDPOINT SCHEMA:
+- project_id (number): Project identifier for the donation
+- amount (number): Donation amount
+- donor_name (string): Name of the donor
+
+KEY METRICS:
+- Total Requests: 1,410
+- Request Rate: 102.08 requests/second
+- All Requests Returned: Status 200 (100% success rate)
+- Zero Request Failures: 0.00% failure rate
+
+PERFORMANCE ISSUES IDENTIFIED:
+
+1. CRITICAL: Response Time Threshold Exceeded
+   - Average Response Time: 965.15 ms
+   - Median Response Time: 825.71 ms
+   - P(95) Response Time: 2,459 ms (FAILED - threshold: p(99) < 3000ms)
+   - Maximum Response Time: 4,828 ms
+   - Issue: High latency, test aborted when p(99) threshold was crossed
+
+2. REQUEST DURATION BREAKDOWN:
+   - Average Waiting Time: 876.56 ms (server processing)
+   - Average Receiving Time: 38.32 ms (response transmission)
+   - Average Sending Time: 50.27 ms (request transmission)
+   - Average Blocking Time: 0.17 ms (connection establishment)
+
+3. THROUGHPUT ANALYSIS:
+   - Data Received: 1.4 GB (103 MB/s)
+   - Data Sent: 1.6 GB (117 MB/s)
+   - Iteration Duration Average: 1,732 ms
+   - Successful Iterations: 1,214
+
+4. SCALABILITY CONCERNS:
+   - Test reached only 460 VUs before termination (9.2% of 5000 target)
+   - Indicates that response times degrade significantly under moderate load
+   - The endpoint cannot sustain heavy concurrent donation traffic
+
+RECOMMENDATIONS:
+
+1. IMMEDIATE ACTIONS:
+   - Investigate server-side processing in the donations endpoint
+   - Review database query performance for donation insertion
+   - Check for blocking operations or synchronous I/O
+
+2. OPTIMIZATION OPPORTUNITIES:
+   - Implement caching for project data lookups
+   - Consider asynchronous processing for donation records
+   - Add database indexes on project_id foreign key
+   - Implement connection pooling if not already present
+
+3. MONITORING & ALERTING:
+   - Set up alerts for response times exceeding 1 second
+   - Monitor CPU and memory usage during peak donation periods
+   - Track database connection pool utilization
+
+4. CAPACITY PLANNING:
+   - Current capacity supports ~100 req/s sustained
+   - Estimate 2-3x improvement needed for production readiness
+   - Consider load balancing and horizontal scaling strategies
+
+CONCLUSION:
+The /donations endpoint shows acceptable functionality (0% error rate) but severely degraded performance under load. The average 965ms response time and inability to handle 5000 concurrent users indicates this critical financial endpoint requires optimization before production deployment at scale.

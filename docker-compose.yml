@@ -5,26 +5,46 @@ services:
     build:
       context: ./test_app
     container_name: hack_app
-    expose:
-      - "8000"
     ports:
-      - "8000:3000"
-      - "8001:8000"
+      - "3000:3000"
+      - "8000:8000"
+    cpus: "2.0"
+    mem_limit: "1.5g"
+    mem_reservation: "512m"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/');\"",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
-  load_agent:
+  opencode:
     build:
-      context: ./load_agent
+      context: .
+      dockerfile: Dockerfile.opencode
     container_name: hack_load_agent
-    command: ["sh", "-c", "sleep infinity"]
-    environment:
-      - TARGET_BASE_URL=http://app:8000
-      - RUNS_DIR=/runs
-    expose:
-      - "8000"
-    ports:
-      - "9000:8000"
+    working_dir: /repo
     volumes:
-      - ./runs:/runs
+      - ./:/repo
+    environment:
+      # Pick your model/provider env vars here (depends on what you use)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TARGET_BASE_URL: ${TARGET_BASE_URL:-http://app:8000}
+      OPENCODE_CONFIG_DIR: /repo/load_agent/.opencode
+
+    command:
+      [
+        "bash",
+        "-lc",
+        "cd /repo/load_agent/.opencode && npm install --omit=dev && opencode run --format json --agent load_agent \"begin\"",
+      ]
+    depends_on:
+      app:
+        condition: service_healthy
 
 networks:
   default:

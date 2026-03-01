@@ -1,15 +1,23 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 import json
+import logging
+import time
 
 app = FastAPI(
     title="Hack4Humanity API",
     description="API for Hack4Humanity initiative",
     version="1.0.0",
 )
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+logger = logging.getLogger("hack4humanity")
 
 # Allow CORS for React frontend
 app.add_middleware(
@@ -19,6 +27,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start) * 1000
+    logger.info(
+        "%s %s %s %.2fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 # Models
@@ -32,7 +55,7 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    pass
+    metadata: Optional[dict] = None
 
 
 class Project(ProjectBase):
@@ -48,7 +71,7 @@ class DonationBase(BaseModel):
 
 
 class DonationCreate(DonationBase):
-    pass
+    metadata: Optional[dict] = None
 
 
 class Donation(DonationBase):
@@ -64,7 +87,7 @@ class VolunteerBase(BaseModel):
 
 
 class VolunteerCreate(VolunteerBase):
-    pass
+    metadata: Optional[dict] = None
 
 
 class Volunteer(VolunteerBase):
@@ -132,6 +155,13 @@ async def create_project(project: ProjectCreate):
     )
     projects_db.append(project_data)
     return project_data
+
+
+@app.post("/ingest")
+async def ingest_payload(payload: dict):
+    """Accept arbitrary JSON for load testing."""
+    payload_bytes = len(json.dumps(payload).encode("utf-8"))
+    return {"received_bytes": payload_bytes}
 
 
 @app.get("/donations", response_model=List[Donation])
