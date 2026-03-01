@@ -8,7 +8,8 @@ services:
     expose:
       - "8000"
     ports:
-      - "8000:8000"
+      - "8000:3000"
+      - "8001:8000"
 
   load_agent:
     build:
