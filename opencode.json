@@ -9,7 +9,8 @@
       "prompt": "{file:./prompts/load_agent.txt}",
       "tools": {
         "find_routes": true,
-        "scale_test": true
+        "scale_test": true,
+        "post_update": true
       }
     }
   }

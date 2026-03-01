@@ -28,6 +28,8 @@ services:
       dockerfile: Dockerfile.opencode
     container_name: hack_load_agent
     working_dir: /repo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./:/repo
     environment:
