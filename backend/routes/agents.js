@@ -1,6 +1,9 @@
 import express from 'express';
+import Docker from 'dockerode';
+import { PassThrough } from 'stream';
 
 const router = express.Router();
+const docker = new Docker();
 
 // In-memory storage: scanId -> array of updates
 const agentUpdates = new Map();
@@ -81,6 +84,87 @@ router.get('/:scanId/stream', (req, res) => {
       subs.delete(res);
       if (subs.size === 0) sseSubscribers.delete(scanId);
     }
+  });
+});
+
+/**
+ * GET /api/agents/:scanId/logs - SSE stream of agent container docker logs
+ */
+router.get('/:scanId/logs', async (req, res) => {
+  const { scanId } = req.params;
+  const containerName = `agent-${scanId}`;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  let stream = null;
+
+  const sendLine = (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    try {
+      const parsed = JSON.parse(trimmed);
+      res.write(`data: ${JSON.stringify({ type: 'json', data: parsed })}\n\n`);
+    } catch {
+      res.write(`data: ${JSON.stringify({ type: 'text', text: trimmed })}\n\n`);
+    }
+  };
+
+  try {
+    const container = docker.getContainer(containerName);
+    stream = await container.logs({
+      follow: true,
+      stdout: true,
+      stderr: true,
+      since: 0
+    });
+
+    // Demux the multiplexed docker stream into separate stdout/stderr
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    docker.modem.demuxStream(stream, stdout, stderr);
+
+    let stdoutBuf = '';
+    stdout.on('data', (chunk) => {
+      stdoutBuf += chunk.toString('utf8');
+      const lines = stdoutBuf.split('\n');
+      stdoutBuf = lines.pop(); // keep incomplete last line in buffer
+      lines.forEach(sendLine);
+    });
+
+    let stderrBuf = '';
+    stderr.on('data', (chunk) => {
+      stderrBuf += chunk.toString('utf8');
+      const lines = stderrBuf.split('\n');
+      stderrBuf = lines.pop();
+      lines.forEach(sendLine);
+    });
+
+    stream.on('end', () => {
+      if (stdoutBuf.trim()) sendLine(stdoutBuf);
+      if (stderrBuf.trim()) sendLine(stderrBuf);
+      res.write(`data: ${JSON.stringify({ type: 'done', text: 'Agent container finished' })}\n\n`);
+      res.end();
+    });
+
+    stream.on('error', (err) => {
+      res.write(`data: ${JSON.stringify({ type: 'error', text: err.message })}\n\n`);
+      res.end();
+    });
+
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', text: `Container ${containerName} not found or not running yet` })}\n\n`);
+  }
+
+  const heartbeat = setInterval(() => {
+    try { res.write(':heartbeat\n\n'); } catch {}
+  }, 15000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    if (stream && stream.destroy) stream.destroy();
   });
 });
 

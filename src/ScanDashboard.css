@@ -1,6 +1,6 @@
 .scan-dashboard {
   width: 100%;
-  max-width: 400px;
+  max-width: 600px;
   margin-top: 20px;
   padding: 20px;
   background: var(--panel, rgba(255, 255, 255, 0.9));
@@ -46,52 +46,144 @@
   text-align: center;
 }
 
-.agent-log {
+/* Main agent updates (from post_update) */
+.agent-main-updates {
+  margin-top: 20px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  padding-top: 14px;
+}
+
+.agent-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent, #3b82f6);
+  margin-bottom: 10px;
+}
+
+.agent-main-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.agent-main-card {
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.06));
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-left: 3px solid var(--accent, #3b82f6);
+  border-radius: 8px;
+  animation: fadeIn 0.4s ease;
+}
+
+.agent-main-time {
+  font-size: 10px;
+  font-family: 'SF Mono', Monaco, monospace;
+  color: var(--muted, rgba(0, 0, 0, 0.5));
+  margin-bottom: 4px;
+}
+
+.agent-main-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text, #0f172a);
+}
+
+/* Agent done banner */
+.agent-done-banner {
+  margin-top: 12px;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 8px;
+}
+
+/* Container logs section */
+.agent-logs-section {
   margin-top: 16px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
   padding-top: 12px;
 }
 
-.agent-log-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  margin-bottom: 8px;
+.agent-logs-toggle {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted, rgba(0, 0, 0, 0.5));
+  background: transparent;
+  border: 1px dashed var(--border, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.agent-log-messages {
-  max-height: 180px;
+.agent-logs-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.agent-logs-container {
+  margin-top: 10px;
+  max-height: 250px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  padding: 8px;
 }
 
-.agent-log-entry {
+.agent-log-line {
   display: flex;
   gap: 8px;
-  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 3px;
   line-height: 1.4;
-  padding: 6px 8px;
-  background: rgba(59, 130, 246, 0.06);
-  border-radius: 6px;
-  border-left: 2px solid rgba(59, 130, 246, 0.4);
-  animation: fadeIn 0.3s ease;
 }
 
-.agent-log-time {
-  color: var(--muted);
+.agent-log-line .agent-log-time {
+  color: var(--muted, rgba(0, 0, 0, 0.4));
   flex-shrink: 0;
-  font-family: 'SF Mono', Monaco, monospace;
-  font-size: 11px;
-  padding-top: 1px;
+  font-size: 10px;
 }
 
-.agent-log-text {
-  color: var(--text);
+.agent-log-line .agent-log-text {
+  color: var(--text, #0f172a);
+  opacity: 0.8;
   flex: 1;
+  word-break: break-word;
+}
+
+.agent-log-text { color: rgba(59, 130, 246, 0.9); }
+.agent-log-tool { background: rgba(168, 85, 247, 0.06); }
+.agent-log-tool .agent-log-text { color: #a855f7; }
+.agent-log-tool-result { background: rgba(34, 197, 94, 0.06); }
+.agent-log-tool-result .agent-log-text { color: #22c55e; }
+.agent-log-error { background: rgba(239, 68, 68, 0.08); }
+.agent-log-error .agent-log-text { color: #ef4444; }
+.agent-log-step { opacity: 0.5; }
+.agent-log-step-done { opacity: 0.6; }
+
+.agent-log-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-style: italic;
+  font-family: inherit;
 }

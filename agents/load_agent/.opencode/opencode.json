@@ -13,7 +13,7 @@
     "load_agent": {
       "description": "Load-testing agent that discovers routes and runs k6 stress tests.",
       "mode": "primary",
-      "model": "anthropic/claude-sonnet-4-20250514",
+      "model": "anthropic/claude-sonnet-4-5-20250929",
       "prompt": "{file:../../prompts/load_agent.txt}",
       "tools": {
         "find_routes": true,

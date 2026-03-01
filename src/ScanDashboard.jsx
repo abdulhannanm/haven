@@ -4,7 +4,11 @@ import './ScanDashboard.css';
 const ScanDashboard = ({ scanId }) => {
   const [currentStep, setCurrentStep] = useState('Initializing...');
   const [progress, setProgress] = useState(0);
-  const [agentMessages, setAgentMessages] = useState([]);
+  const [mainUpdates, setMainUpdates] = useState([]);
+  const [containerLogs, setContainerLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [agentDone, setAgentDone] = useState(false);
+  const mainEndRef = useRef(null);
   const logEndRef = useRef(null);
 
   const steps = [
@@ -31,7 +35,6 @@ const ScanDashboard = ({ scanId }) => {
 
     eventSource.onmessage = (event) => {
       if (event.data.startsWith(':heartbeat')) return;
-      
       try {
         const data = JSON.parse(event.data);
         if (data.step && data.status === 'started') {
@@ -41,19 +44,18 @@ const ScanDashboard = ({ scanId }) => {
             setProgress(((stepIndex[data.step] + 1) / steps.length) * 100);
           }
         }
-      } catch (error) {
-        console.error('Failed to parse SSE data:', error);
-      }
+        if (data.step === 'scan' && data.status === 'completed') {
+          setProgress(100);
+          setCurrentStep('Agent running...');
+        }
+      } catch (error) {}
     };
 
     eventSource.onerror = () => {};
-
-    return () => {
-      eventSource.close();
-    };
+    return () => eventSource.close();
   }, [scanId]);
 
-  // Agent updates SSE
+  // Main agent updates SSE (from post_update tool)
   useEffect(() => {
     if (!scanId) return;
 
@@ -63,7 +65,7 @@ const ScanDashboard = ({ scanId }) => {
       try {
         const data = JSON.parse(event.data);
         if (data.message) {
-          setAgentMessages(prev => [...prev, {
+          setMainUpdates(prev => [...prev, {
             text: data.message,
             time: new Date(data.timestamp || Date.now()).toLocaleTimeString()
           }]);
@@ -72,16 +74,70 @@ const ScanDashboard = ({ scanId }) => {
     };
 
     agentSource.onerror = () => {};
-
-    return () => {
-      agentSource.close();
-    };
+    return () => agentSource.close();
   }, [scanId]);
 
-  // Auto-scroll log to bottom
+  // Container logs SSE (docker logs from agent container)
+  useEffect(() => {
+    if (!scanId) return;
+
+    // Delay slightly to let container start
+    const timeout = setTimeout(() => {
+      const logSource = new EventSource(`http://localhost:3001/api/agents/${scanId}/logs`);
+
+      logSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'done') {
+            setAgentDone(true);
+            logSource.close();
+            return;
+          }
+
+          let entry = null;
+          if (data.type === 'json' && data.data) {
+            const d = data.data;
+            if (d.type === 'text' && d.part?.text) {
+              entry = { kind: 'text', text: d.part.text, time: new Date(d.timestamp).toLocaleTimeString() };
+            } else if (d.type === 'tool_call') {
+              entry = { kind: 'tool', text: `Tool: ${d.part?.name || 'unknown'}`, time: new Date(d.timestamp).toLocaleTimeString() };
+            } else if (d.type === 'tool_result') {
+              entry = { kind: 'tool-result', text: `Tool result`, time: new Date(d.timestamp).toLocaleTimeString() };
+            } else if (d.type === 'step_start') {
+              entry = { kind: 'step', text: 'New step started', time: new Date(d.timestamp).toLocaleTimeString() };
+            } else if (d.type === 'step_finish') {
+              const cost = d.part?.cost ? `$${d.part.cost.toFixed(4)}` : '';
+              entry = { kind: 'step-done', text: `Step finished ${cost}`, time: new Date(d.timestamp).toLocaleTimeString() };
+            } else if (d.type === 'error') {
+              entry = { kind: 'error', text: d.error?.data?.message || 'Error', time: new Date(d.timestamp).toLocaleTimeString() };
+            } else {
+              entry = { kind: 'info', text: d.type || 'log', time: new Date(d.timestamp || Date.now()).toLocaleTimeString() };
+            }
+          } else if (data.type === 'text') {
+            entry = { kind: 'info', text: data.text, time: new Date().toLocaleTimeString() };
+          }
+
+          if (entry) {
+            setContainerLogs(prev => [...prev.slice(-200), entry]);
+          }
+        } catch (error) {}
+      };
+
+      logSource.onerror = () => {};
+      return () => logSource.close();
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [scanId]);
+
+  // Auto-scroll
+  useEffect(() => {
+    mainEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mainUpdates]);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [agentMessages]);
+  }, [containerLogs]);
 
   return (
     <div className="scan-dashboard">
@@ -91,20 +147,23 @@ const ScanDashboard = ({ scanId }) => {
       </div>
       <div className="scan-meta">{Math.round(progress)}%</div>
 
-      {agentMessages.length > 0 && (
-        <div className="agent-log">
-          <div className="agent-log-title">Agent Updates</div>
-          <div className="agent-log-messages">
-            {agentMessages.map((msg, i) => (
-              <div key={i} className="agent-log-entry">
-                <span className="agent-log-time">{msg.time}</span>
-                <span className="agent-log-text">{msg.text}</span>
+      {mainUpdates.length > 0 && (
+        <div className="agent-main-updates">
+          <div className="agent-section-title">Agent Findings</div>
+          <div className="agent-main-list">
+            {mainUpdates.map((msg, i) => (
+              <div key={i} className="agent-main-card">
+                <div className="agent-main-time">{msg.time}</div>
+                <div className="agent-main-text">{msg.text}</div>
               </div>
             ))}
-            <div ref={logEndRef} />
+            <div ref={mainEndRef} />
           </div>
         </div>
       )}
+
+
+
     </div>
   );
 };

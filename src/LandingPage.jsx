@@ -78,7 +78,7 @@ function LandingPage({ onEnter }) {
         
         <p className="landing-description">
           In a world where humanitarian aid, education, healthcare, and crisis response 
-          rely on open-source software, security is no longer optional — it's essential.
+          depend on digital systems, security is no longer optional — it's essential.
         </p>
         
         <p className="landing-description secondary">
