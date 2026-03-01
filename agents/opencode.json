@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anthropic": {
+      "models": {},
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
+    }
+  },
+  "default_agent": "load_agent",
+  "agent": {
+    "load_agent": {
+      "description": "Load-testing agent that discovers routes and runs k6 stress tests.",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:./prompts/load_agent.txt}",
+      "tools": {
+        "find_routes": true,
+        "scale_test": true,
+        "post_update": true
+      }
+    }
+  }
+}

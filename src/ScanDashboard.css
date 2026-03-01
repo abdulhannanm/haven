@@ -1,0 +1,97 @@
+.scan-dashboard {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--panel, rgba(255, 255, 255, 0.9));
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.progress-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text, #0f172a);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border, rgba(0, 0, 0, 0.1));
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #3b82f6), var(--accent-hover, #60a5fa));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.scan-meta {
+  font-size: 12px;
+  color: var(--muted, rgba(0, 0, 0, 0.5));
+  text-align: center;
+}
+
+.agent-log {
+  margin-top: 16px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  padding-top: 12px;
+}
+
+.agent-log-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.agent-log-messages {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.agent-log-entry {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 8px;
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: 6px;
+  border-left: 2px solid rgba(59, 130, 246, 0.4);
+  animation: fadeIn 0.3s ease;
+}
+
+.agent-log-time {
+  color: var(--muted);
+  flex-shrink: 0;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 11px;
+  padding-top: 1px;
+}
+
+.agent-log-text {
+  color: var(--text);
+  flex: 1;
+}

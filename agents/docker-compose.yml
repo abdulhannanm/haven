@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ./test_app
+    container_name: hack_app
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+    cpus: "2.0"
+    mem_limit: "1.5g"
+    mem_reservation: "512m"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/');\"",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile.opencode
+    container_name: hack_load_agent
+    working_dir: /repo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/repo
+    environment:
+      # Pick your model/provider env vars here (depends on what you use)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TARGET_BASE_URL: ${TARGET_BASE_URL:-http://app:8000}
+      OPENCODE_CONFIG_DIR: /repo/load_agent/.opencode
+
+    command:
+      [
+        "bash",
+        "-lc",
+        "cd /repo/load_agent/.opencode && npm install --omit=dev && opencode run --format json --agent load_agent \"begin\"",
+      ]
+    depends_on:
+      app:
+        condition: service_healthy
+
+networks:
+  default:
+    name: hackathon_net

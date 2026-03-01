@@ -1,16 +1,51 @@
 import { useEffect, useRef, useState } from 'react'
+import LandingPage from './LandingPage.jsx'
+import ScanDashboard from './ScanDashboard.jsx'
+import ScanResults from './ScanResults.jsx'
 import './App.css'
 
 function App() {
   const [githubUrl, setGithubUrl] = useState('')
-  const [theme, setTheme] = useState('light')
+  const [theme, setTheme] = useState('dark')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [scanResults, setScanResults] = useState(null)
+  const [showMainApp, setShowMainApp] = useState(false)
+  const [currentScanId, setCurrentScanId] = useState(null)
   const rafIdRef = useRef(0)
 
-  const handleSubmit = () => {
-    if (githubUrl.trim()) {
-      console.log('GitHub URL:', githubUrl)
-      // Navigate to protect
-      window.location.href = '/protect'
+  const handleSubmit = async () => {
+    if (!githubUrl.trim()) return
+    
+    setLoading(true)
+    setError('')
+    setScanResults(null)
+    
+    // Generate scan ID immediately so dashboard shows
+    const newScanId = `scan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    setCurrentScanId(newScanId)
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl: githubUrl, scanId: newScanId })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Scan failed')
+      }
+      
+      setScanResults(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      // Keep dashboard visible for 22 seconds to let all steps animate
+      setTimeout(() => {
+        setLoading(false)
+      }, 22000)
     }
   }
 
@@ -20,9 +55,9 @@ function App() {
       setTheme(savedTheme)
       return
     }
-
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
-    setTheme(prefersDark ? 'dark' : 'light')
+    
+    // Default to dark theme
+    setTheme('dark')
   }, [])
 
   useEffect(() => {
@@ -52,12 +87,19 @@ function App() {
     }
   }, [])
 
+  if (!showMainApp) {
+    return <LandingPage onEnter={() => {
+      setShowMainApp(true)
+      // Keep current theme when entering main app
+    }} />
+  }
+
   return (
     <div className="search-container">
       <div className="cursor-glow" aria-hidden="true" />
 
       <div className="top-left">
-        <h1 className="app-title">Protect</h1>
+        <h1 className="app-title" onClick={() => setShowMainApp(false)} style={{ cursor: 'pointer' }}>Haven</h1>
       </div>
 
       <div className="top-right">
@@ -87,23 +129,63 @@ function App() {
         </button>
       </div>
 
-      <div className="search-wrapper">
-        <input
-          type="text"
-          className="search-bar"
-          placeholder="Enter GitHub URL"
-          value={githubUrl}
-          onChange={(e) => setGithubUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              handleSubmit()
-            }
+      <div className={`scan-container ${loading ? 'scanning-active' : ''}`}>
+        <div className="search-wrapper">
+          <input
+            type="text"
+            className={`search-bar ${loading ? 'loading' : ''}`}
+            placeholder="Enter GitHub URL"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSubmit()
+              }
+            }}
+            disabled={loading}
+          />
+          {loading && <div className="search-spinner" />}
+          <button type="button" className="submit-button" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Scanning...' : 'Scan'}
+          </button>
+        </div>
+        
+        {loading && currentScanId && (
+          <ScanDashboard 
+            scanId={currentScanId} 
+            repoUrl={githubUrl}
+          />
+        )}
+      </div>
+      
+      {error && (
+        <div className="notification error">
+          <div className="notification-icon">⚠️</div>
+          <div className="notification-content">
+            <div className="notification-title">Scan Failed</div>
+            <div className="notification-message">{error}</div>
+          </div>
+          <button 
+            className="notification-close" 
+            onClick={() => setError('')}
+            aria-label="Close notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      {scanResults && scanResults.success && (
+        <ScanResults
+          results={scanResults}
+          onClose={() => setScanResults(null)}
+          onNewScan={() => {
+            setScanResults(null)
+            setGithubUrl('')
+            setCurrentScanId(null)
           }}
         />
-        <button type="button" className="submit-button" onClick={handleSubmit}>
-          Protect
-        </button>
-      </div>
+      )}
     </div>
   )
 }

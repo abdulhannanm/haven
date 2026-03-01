@@ -1,16 +1,67 @@
-# React + Vite
+# Haven
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A security scanning service that clones GitHub repositories, builds Docker containers, and runs security analysis in isolated environments.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🐳 **Containerized Security**: Scans applications in isolated Docker containers
+- 🔍 **Automated Analysis**: Checks for missing security headers and common vulnerabilities
+- 🌐 **Modern UI**: Beautiful glass-morphism interface with dark/light themes
+- ⚡ **Real-time Scanning**: Live feedback with elegant notifications
+- 🧹 **Auto Cleanup**: Automatically removes containers, images, and cloned repos
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- **Docker Desktop** (required for container building and scanning)
+- **Node.js 20.19+** (for development)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Start backend server
+npm run server
+
+# Start frontend (in separate terminal)
+npm run dev
+```
+
+### Usage
+
+1. Open http://localhost:5173 in your browser
+2. Enter a GitHub repository URL that contains a Dockerfile
+3. Click "Scan" to start the security analysis
+4. View results in the notification panel
+
+## API Endpoints
+
+- `POST /api/scan` - Start a new security scan
+- `GET /api/scan/health` - Check Docker availability
+- `GET /api/health` - Basic health check
+
+## Tech Stack
+
+- **Frontend**: React + Vite + Tailwind CSS
+- **Backend**: Express.js + Dockerode + Simple-git
+- **Security**: Custom security agent with extensible findings system
+
+## Example Repositories to Test
+
+- `https://github.com/docker/getting-started` (has Dockerfile)
+- `https://github.com/GoogleCloudPlatform/nodejs-getting-started` (has Dockerfile)
+
+## Development
+
+```bash
+# Run both services concurrently
+npm run server  # Backend on port 3001
+npm run dev     # Frontend on port 5173
+```
+
+## License
+
+MIT
